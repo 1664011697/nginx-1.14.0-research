@@ -155,7 +155,18 @@ Configuration summary
 
 其中的一些模块是很重要的，但是我们也可以自主选择。
 
-## autoconf.c
+## autoconf.err
+
+这个文件记录检查的结果。
+
+## Makefile
+
+nginx/Makefile 只是一个命令的封装，实际上本质的Makefile操作是在objs/Makefile里面的。
+
+我们可以看一下，它使用的编译器是cc， cc编译器在linux上就是gcc。 gcc是一个各种不同语言的编译器。gcc代表 the GNU Compiler Collection。 比如你的代码后缀是.c， 它会调用c的编译器还有linker去链接c的库。
+
+
+
 
 # 参考文章
 https://blog.csdn.net/fzy0201/article/details/17683883

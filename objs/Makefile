@@ -1,6 +1,7 @@
 
+# 定义编译器和编译参数，存放在LINK变量里面
 CC =	cc
-CFLAGS =  -pipe  -O -W -Wall -Wpointer-arith -Wno-unused-parameter -Werror -g 
+CFLAGS =  -pipe  -O -W -Wall -Wpointer-arith -Wno-unused-parameter -Werror -g
 CPP =	cc -E
 LINK =	$(CC)
 
@@ -339,7 +340,7 @@ objs/nginx:	objs/src/core/nginx.o \
 	objs/ngx_modules.o \
 	-ldl -lrt -lpthread -lcrypt -lz \
 	-Wl,-E
-	
+
 
 
 modules:
@@ -1165,7 +1166,7 @@ objs/nginx.8:	man/nginx.8 objs/ngx_auto_config.h
 		-e "s|%%ERROR_LOG_PATH%%|/usr/local/nginx/logs/error.log|" \
 		< man/nginx.8 > $@
 
-install:	build 
+install:	build
 	test -d '$(DESTDIR)/usr/local/nginx' || mkdir -p '$(DESTDIR)/usr/local/nginx'
 
 	test -d '$(DESTDIR)/usr/local/nginx/sbin' \
