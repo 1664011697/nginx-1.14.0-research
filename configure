@@ -11,7 +11,7 @@ export LC_ALL
 . auto/options
 # 初始化后续将产生的文件路径。例如，Makefile,ngx_modules.c等文件默认情况下会在<nginx-source>/objs/
 . auto/init
-# 分析Nginx的源码结构，这样才能构造后续的Makefile文件
+# 分析Nginx的源码结构，并定义一些变量表示源文件
 . auto/sources
 
 # 编译过程中所有目录文件生成的路径由--builddir=DIR参数指定，默认情况下为<nginx-source>/objs,此时这个目录将会被创建
@@ -53,7 +53,7 @@ else
     NGX_SYSTEM=$NGX_PLATFORM
 fi
 
-# 检查并设置编译器，如GCC是否安装，GCC版本是否支持后续编译nginx
+# 检查并设置编译器，如GCC是否安装，GCC版本是否支持后续编译nginx，主要设置了
 . auto/cc/conf
 
 # 对非Windows操作系统定义一些必要的头文件，并检查其是否存在，以此决定configure后续步骤是否可以成功
@@ -69,7 +69,9 @@ if [ "$NGX_PLATFORM" != win32 ]; then
     . auto/unix
 fi
 
+# 如果打开了线程池支持，那么就会检查是否操作系统支持县城
 . auto/threads
+
 # 最核心的构造运行期modules的脚本。
 # 它会生成ngx_modules.c文件，这个文件会被编译进nginx中，其中它所做的唯一事情就是定义了ngx_modules数组。
 # ngx_moduels指明nginx运行期间有哪些模块会参与到请求的处理中，包括HTTP请求可能会使用哪些模块处理。
@@ -119,13 +121,14 @@ have=NGX_HTTP_UWSGI_TEMP_PATH value="\"$NGX_HTTP_UWSGI_TEMP_PATH\""
 have=NGX_HTTP_SCGI_TEMP_PATH value="\"$NGX_HTTP_SCGI_TEMP_PATH\""
 . auto/define
 
-# 创建编译时使用的objs/Makefile文件
+# 创建编译时使用的objs/Makefile文件 和objs/src 下面的一些文件夹
 . auto/make
 
 # 为objs/Makefile加入需要链接的第三方静态库，动态库，或者目标文件
 . auto/lib/make
 
 # 为objs/Makefile加入install功能，当执行make install时，将编译生成的必要文件复制到安装路径，建立必要的目录
+# 创建当前目录下的Makefile
 . auto/install
 
 # STUB，在nginx_auto_config.h文件中加入NGX_SUPPRESS_WARN宏，NGX_SMP宏

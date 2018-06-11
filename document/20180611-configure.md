@@ -165,6 +165,29 @@ nginx/Makefile 只是一个命令的封装，实际上本质的Makefile操作是
 
 我们可以看一下，它使用的编译器是cc， cc编译器在linux上就是gcc。 gcc是一个各种不同语言的编译器。gcc代表 the GNU Compiler Collection。 比如你的代码后缀是.c， 它会调用c的编译器还有linker去链接c的库。
 
+# configure的语法
+
+## have 语法：
+```
+have=NGX_SBIN_PATH value="\"$NGX_SBIN_PATH\"" . auto/define
+```
+
+autodefine的定义：
+
+```
+# Copyright (C) Igor Sysoev
+# Copyright (C) Nginx, Inc.
+
+
+cat << END >> $NGX_AUTO_CONFIG_H
+
+#ifndef $have
+#define $have  $value
+#endif
+
+END
+```
+
 
 
 
