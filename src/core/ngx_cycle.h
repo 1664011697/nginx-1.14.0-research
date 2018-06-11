@@ -35,9 +35,10 @@ struct ngx_shm_zone_s {
     ngx_uint_t                noreuse;  /* unsigned  noreuse:1; */
 };
 
-
+// 全局变量
+// modules,conf,listening,connections,events
 struct ngx_cycle_s {
-    void                  ****conf_ctx;
+    void                  ****conf_ctx; // 各个模块的配置
     ngx_pool_t               *pool;
 
     ngx_log_t                *log;
@@ -49,7 +50,7 @@ struct ngx_cycle_s {
     ngx_connection_t         *free_connections;
     ngx_uint_t                free_connection_n;
 
-    ngx_module_t            **modules;
+    ngx_module_t            **modules;  // 所有的模块
     ngx_uint_t                modules_n;
     ngx_uint_t                modules_used;    /* unsigned  modules_used:1; */
 

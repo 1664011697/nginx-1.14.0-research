@@ -190,7 +190,11 @@ static char        *ngx_signal;
 
 static char **ngx_os_environ;
 
-
+// 主函数
+// 1.ngx_get_options解析参数，nginx -c nginx.conf or nginx -s stop/quit/reload/reopen
+// 2.ngx_init_cycle读取并解析配置文件(create/parse/init conf) nginx -c
+// 3.ngx_signal_process接受并处理相应的信号 nginx -s
+// 4.ngx_master_process_cycle--Master-Worker的主循环流程(fork/run worker, check status)
 int ngx_cdecl
 main(int argc, char *const *argv)
 {

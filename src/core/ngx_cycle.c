@@ -33,8 +33,17 @@ ngx_uint_t             ngx_quiet_mode;
 /* STUB NAME */
 static ngx_connection_t  dumb;
 /* STUB */
-
-
+//https://blog.csdn.net/livelylittlefish/article/details/7247080
+//主要是加载配置并且打开监听端口。配置解析是一个递归调用的一个过程
+//1.调用core模块的create_conf
+//2.ngx_parse_conf
+//-如果解析到core模块的commands，就调用command响应的set函数将其写入到conf结构
+//-解析到http的token,是ngx_http模块的commands，其set函数是ngx_http_block这个时候又会去调用所有http模块的create_conf,parse_conf和init_conf
+//-解析到events的token，是ngx_events模块的commands，其set函数会调用相应的事件模型
+//3.调用core模块的init_conf(实际核心模块中只有ngx_core_module定义了create_conf和init_conf)
+//4.ngx_open_listening_sockets遍历listening数组并打开所有侦听sockets(socket()->setsockopt()->bind()->listen())(try 5 times)
+//5.ngx_init_modules提交新的cycle配置，并调用所有模块的init_module(实际上只有ngx_event_core_module模块定义了该callback，即只有ngx_event_module_init()被调用)
+//6.关闭或删除残留在old_cycle中的资源(释放多余的共享内存，关闭多余的listening_sockets，关闭多余open_files)
 ngx_cycle_t *
 ngx_init_cycle(ngx_cycle_t *old_cycle)
 {

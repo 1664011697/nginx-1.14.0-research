@@ -69,7 +69,14 @@ static ngx_cycle_t      ngx_exit_cycle;
 static ngx_log_t        ngx_exit_log;
 static ngx_open_file_t  ngx_exit_log_file;
 
-
+// master-worker进程模型
+// master主流程loop
+// 1. ngx_start_worker_processes：fork & run workers
+// 2. ngx_start_cache_manager_processes: fork & run cache manager
+// 3. for循环检查主进程的signal tag(terminate/quit/reconfigure/restart/reopen/change_binary),根据状态管理worker进程
+// --terminate:ngx_signal_worker_processes(cycle, ngx_signal_value(NGX_TERMINATE_SIGNAL));
+// --quit:ngx_signal_worker_processes(cycle, ngx_signal_value(NGX_SHUTDOWN_SIGNAL));
+// --reconfigure:老的worker进程shutdown,并且start_new_workers
 void
 ngx_master_process_cycle(ngx_cycle_t *cycle)
 {
@@ -137,6 +144,7 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
     sigio = 0;
     live = 1;
 
+    // loop
     for ( ;; ) {
         if (delay) {
             if (ngx_sigalrm) {
