@@ -349,7 +349,6 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
     }
 }
 
-
 static void
 ngx_start_worker_processes(ngx_cycle_t *cycle, ngx_int_t n, ngx_int_t type)
 {
@@ -731,7 +730,10 @@ ngx_master_process_exit(ngx_cycle_t *cycle)
     exit(0);
 }
 
-
+// worker 主流程loop
+// 1. ngx_worker_process_init调用所有module的init_process, event的init_process会注册accpet事件
+// 2. ngx_process_events_and_timers---处理网络IO事件和时间事件 
+// 3. 检查worker的signal tag(exiting/terminate/quit)
 static void
 ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 {
@@ -755,6 +757,7 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 
         ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "worker cycle");
 
+        // 事件循环模型:accept/read/write, connect/write/read, timeout
         ngx_process_events_and_timers(cycle);
 
         if (ngx_terminate) {
