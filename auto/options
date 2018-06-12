@@ -5,22 +5,36 @@
 
 help=no
 
+# 设置nginx安装路径的前缀
 NGX_PREFIX=
+# 设置nginx的二进制文件夹的前缀
 NGX_SBIN_PATH=
+# 设置模块路径
 NGX_MODULES_PATH=
+# 设置nginx.conf的文件夹
 NGX_CONF_PREFIX=
+# 设置nginx.conf的路径
 NGX_CONF_PATH=
+# 设置错误日志路径，err.log
 NGX_ERROR_LOG_PATH=
+# 设置nginx.pid的路径
 NGX_PID_PATH=
+# 设置nginx.lock的路径
 NGX_LOCK_PATH=
+# 设置nginx里面执行的用户
 NGX_USER=
+# 设置nginx里面执行的用户所在组
 NGX_GROUP=
+# 设置编译文件所在的路径
 NGX_BUILD=
 
+# 指定连接器
 CC=${CC:-cc}
 CPP=
+# 设置生成的对象文件夹为objs
 NGX_OBJS=objs
 
+# 设置nginx是否开启debug模式
 NGX_DEBUG=NO
 NGX_CC_OPT=
 NGX_LD_OPT=
@@ -33,27 +47,38 @@ NGX_TEST_BUILD_EVENTPORT=NO
 NGX_TEST_BUILD_EPOLL=NO
 NGX_TEST_BUILD_SOLARIS_SENDFILEV=NO
 
+# nginx的运行平台
 NGX_PLATFORM=
 NGX_WINE=
 
 EVENT_FOUND=NO
 
+# nginx的事件驱动
 EVENT_SELECT=NO
 EVENT_POLL=NO
 
+# 是否使用线程池支持：http://www.infoq.com/cn/articles/thread-pools-boost-performance-9x
 USE_THREADS=NO
 
+# 异步非阻塞的AIO是否需要打开
 NGX_FILE_AIO=NO
 
 HTTP=YES
 
+# http的accesslog的文件路径
 NGX_HTTP_LOG_PATH=
+# http的客户端请求的临时文件
 NGX_HTTP_CLIENT_TEMP_PATH=
+# http代理的临时文件
 NGX_HTTP_PROXY_TEMP_PATH=
+# http fastcgi的临时文件
 NGX_HTTP_FASTCGI_TEMP_PATH=
+# uswgi，python网关代理的临时文件
 NGX_HTTP_UWSGI_TEMP_PATH=
+# 通用网关代理的临时文件
 NGX_HTTP_SCGI_TEMP_PATH=
 
+# HTTP的一些模块的设置开关
 HTTP_CACHE=YES
 HTTP_CHARSET=YES
 HTTP_GZIP=YES
@@ -105,15 +130,17 @@ HTTP_UPSTREAM_LEAST_CONN=YES
 HTTP_UPSTREAM_KEEPALIVE=YES
 HTTP_UPSTREAM_ZONE=YES
 
-# STUB
+# nginx的状态模块的开关
 HTTP_STUB_STATUS=NO
 
+# 邮件模块相关的配置
 MAIL=NO
 MAIL_SSL=NO
 MAIL_POP3=YES
 MAIL_IMAP=YES
 MAIL_SMTP=YES
 
+# nginx1.9加入的stream模块，实现转发
 STREAM=NO
 STREAM_SSL=NO
 STREAM_REALIP=NO
@@ -137,20 +164,24 @@ DYNAMIC_ADDONS=
 
 NGX_COMPAT=NO
 
+# 使用使用PCRE库
 USE_PCRE=NO
 PCRE=NONE
 PCRE_OPT=
 PCRE_CONF_OPT=
 PCRE_JIT=NO
 
+# 是否使用OPENSSL
 USE_OPENSSL=NO
 OPENSSL=NONE
 
+# 是否开启ZLIB
 USE_ZLIB=NO
 ZLIB=NONE
 ZLIB_OPT=
 ZLIB_ASM=NO
 
+# 是否使用PERL
 USE_PERL=NO
 NGX_PERL=perl
 
@@ -584,7 +615,7 @@ if [ ".$NGX_PLATFORM" = ".win32" ]; then
     NGX_WINE=$WINE
 fi
 
-
+# 这里设置默认值
 NGX_SBIN_PATH=${NGX_SBIN_PATH:-sbin/nginx}
 NGX_MODULES_PATH=${NGX_MODULES_PATH:-modules}
 NGX_CONF_PATH=${NGX_CONF_PATH:-conf/nginx.conf}

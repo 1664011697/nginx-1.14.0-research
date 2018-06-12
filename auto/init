@@ -1,12 +1,16 @@
 
 # Copyright (C) Igor Sysoev
 # Copyright (C) Nginx, Inc.
+# 这个脚本初始化一些configure生成的文件
 
-
+# 创建 obj/Makefile地址
 NGX_MAKEFILE=$NGX_OBJS/Makefile
+# 创建 obj/ngx_module.c地址
 NGX_MODULES_C=$NGX_OBJS/ngx_modules.c
 
+# 设置默认的header头
 NGX_AUTO_HEADERS_H=$NGX_OBJS/ngx_auto_headers.h
+# 设置配置文件，就是把configure命令中的一些配置和默认配置都放到这个里面
 NGX_AUTO_CONFIG_H=$NGX_OBJS/ngx_auto_config.h
 
 NGX_AUTOTEST=$NGX_OBJS/autotest
@@ -40,7 +44,7 @@ else
 fi
 
 
-# create Makefile
+# create Makefile, 初始化Makefile文件，这个是nginx目录下的Makefile
 
 cat << END > Makefile
 
