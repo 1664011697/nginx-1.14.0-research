@@ -37,7 +37,8 @@ static ngx_conf_enum_t  ngx_debug_points[] = {
     { ngx_null_string, 0 }
 };
 
-
+// 定义了ngx_core_modules使用的配置指令，同时指定了指令的解析函数
+// 这些指令的type都是NGX_MAIN_CONF | NGX_DIRECT_CONF，只能出现在配置文件最外层的main域中
 static ngx_command_t  ngx_core_commands[] = {
 
     { ngx_string("daemon"),
@@ -152,18 +153,18 @@ static ngx_command_t  ngx_core_commands[] = {
       0,
       NULL },
 
-      ngx_null_command
+      ngx_null_command // 指令数组结束
 };
 
 
 static ngx_core_module_t  ngx_core_module_ctx = {
-    ngx_string("core"),
-    ngx_core_module_create_conf,
-    ngx_core_module_init_conf
+    ngx_string("core"), // 模块名字
+    ngx_core_module_create_conf, // 创建配置结构
+    ngx_core_module_init_conf // 初始化配置结构
 };
 
 
-ngx_module_t  ngx_core_module = {
+ngx_module_t  ngx_core_module = { // 模块定义
     NGX_MODULE_V1,
     &ngx_core_module_ctx,                  /* module context */
     ngx_core_commands,                     /* module directives */
@@ -195,22 +196,24 @@ static char **ngx_os_environ;
 // 2.ngx_init_cycle读取并解析配置文件(create/parse/init conf) nginx -c
 // 3.ngx_signal_process接受并处理相应的信号 nginx -s
 // 4.ngx_master_process_cycle--Master-Worker的主循环流程(fork/run worker, check status)
-int ngx_cdecl
+int ngx_cdecl //ngx_cdecl宏用于显式声明应使用的调用约定，在跨平台移植时有用，在linux版本的nginx程序中，该宏被定义为空
 main(int argc, char *const *argv)
 {
     ngx_buf_t        *b;
-    ngx_log_t        *log;
+    ngx_log_t        *log; //保存日志结构
     ngx_uint_t        i;
-    ngx_cycle_t      *cycle, init_cycle;
+    ngx_cycle_t      *cycle, init_cycle; //初始化时的主结构体，在平滑升级服务器时，init_cycle负责升级前的信息,cycle负责升级后的信息
     ngx_conf_dump_t  *cd;
-    ngx_core_conf_t  *ccf;
+    ngx_core_conf_t  *ccf; //保存配置上下文
 
-    ngx_debug_init();
+    ngx_debug_init(); //ngx_debug_init在FreeBSD和MacOSX平台有执行，设置平台调试需要预先设置的东西
 
+    //ngx_strerror_init 用于初始化nginx服务器自定义的标准错误输出列表
     if (ngx_strerror_init() != NGX_OK) {
         return 1;
     }
 
+    //获取参数和配置参数，比如命令是nginx -v 那么ngx_show_version就设置为1
     if (ngx_get_options(argc, argv) != NGX_OK) {
         return 1;
     }
@@ -253,19 +256,20 @@ main(int argc, char *const *argv)
     init_cycle.log = log;
     ngx_cycle = &init_cycle;
 
+    // 为cycle创建一个1024B的内存池
     init_cycle.pool = ngx_create_pool(1024, log);
     if (init_cycle.pool == NULL) {
         return 1;
     }
-
+    // 保存参数到全局变量中
     if (ngx_save_argv(&init_cycle, argc, argv) != NGX_OK) {
         return 1;
     }
-
+    // 初始化init_cycle中的一些如: conf_file，prefix，conf_prefix等字段
     if (ngx_process_options(&init_cycle) != NGX_OK) {
         return 1;
     }
-
+    // 初始化系统相关变量，如内存页面大小ngx_pagesize,ngx_cacheline_size,最大连接数ngx_max_sockets等
     if (ngx_os_init(log) != NGX_OK) {
         return 1;
     }
@@ -273,7 +277,7 @@ main(int argc, char *const *argv)
     /*
      * ngx_crc32_table_init() requires ngx_cacheline_size set in ngx_os_init()
      */
-
+     // 初始化CRC表，提高效率，以后就不用计算了，直接用
     if (ngx_crc32_table_init() != NGX_OK) {
         return 1;
     }
@@ -283,15 +287,17 @@ main(int argc, char *const *argv)
      */
 
     ngx_slab_sizes_init();
-
+    // 继承sockets,继承来的socket将会放到init_cycle的listening数组
+	//继承的原因：在nginx服务器升级的情况下，保证web服务的平滑过渡，新的nginx能够继承旧nginx打开的socket
     if (ngx_add_inherited_sockets(&init_cycle) != NGX_OK) {
         return 1;
     }
 
+    // 初始化模块，并且设置索引
     if (ngx_preinit_modules() != NGX_OK) {
         return 1;
     }
-
+    // 对ngx_cycle结构进行初始化,这里是nginx启动核心之处！
     cycle = ngx_init_cycle(&init_cycle);
     if (cycle == NULL) {
         if (ngx_test_config) {
@@ -328,6 +334,7 @@ main(int argc, char *const *argv)
         return 0;
     }
 
+    // 检查是否有设置信号处理，如有，进入ngx_signal_process处理，这个分支就是运行nginx -s xxx的时候会进入的
     if (ngx_signal) {
         return ngx_signal_process(cycle, ngx_signal);
     }
@@ -349,7 +356,7 @@ main(int argc, char *const *argv)
     }
 
     if (!ngx_inherited && ccf->daemon) {
-        if (ngx_daemon(cycle->log) != NGX_OK) {
+        if (ngx_daemon(cycle->log) != NGX_OK) { //如果是daemon模式，本进程变为守护进程
             return 1;
         }
 
@@ -379,11 +386,12 @@ main(int argc, char *const *argv)
 
     ngx_use_stderr = 0;
 
+    //下面调用ngx_single_process_cycle或者ngx_master_process_cycle来启动nginx
     if (ngx_process == NGX_PROCESS_SINGLE) {
-        ngx_single_process_cycle(cycle);
+        ngx_single_process_cycle(cycle); //单进程，基本很少用single模式
 
     } else {
-        ngx_master_process_cycle(cycle);
+        ngx_master_process_cycle(cycle); //多进程，master进程进入这个，这个函数在不同操作系统有不同实现。
     }
 
     return 0;
