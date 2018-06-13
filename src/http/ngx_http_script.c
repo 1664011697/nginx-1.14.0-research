@@ -118,16 +118,16 @@ ngx_http_compile_complex_value(ngx_http_compile_complex_value_t *ccv)
     nc = 0;
 
     for (i = 0; i < v->len; i++) {
-        if (v->data[i] == '$') {
+        if (v->data[i] == '$') {//'$'开始的是变量
             if (v->data[i + 1] >= '1' && v->data[i + 1] <= '9') {
-                nc++;
+                nc++;//统计匿名子模式的数目
 
             } else {
-                nv++;
+                nv++;//统计一般变量的数目
             }
         }
     }
-
+    /*如果第一位是非变量,转换为绝对路径*/
     if ((v->len == 0 || v->data[0] != '$')
         && (ccv->conf_prefix || ccv->root_prefix))
     {
@@ -138,7 +138,7 @@ ngx_http_compile_complex_value(ngx_http_compile_complex_value_t *ccv)
         ccv->conf_prefix = 0;
         ccv->root_prefix = 0;
     }
-
+    //计算初始化三个变量的数组
     ccv->complex_value->value = *v;
     ccv->complex_value->flushes = NULL;
     ccv->complex_value->lengths = NULL;
@@ -191,7 +191,7 @@ ngx_http_compile_complex_value(ngx_http_compile_complex_value_t *ccv)
     sc.zero = ccv->zero;
     sc.conf_prefix = ccv->conf_prefix;
     sc.root_prefix = ccv->root_prefix;
-
+    //进行脚本解析编译,结果会反映到ccv->complex_value里面
     if (ngx_http_script_compile(&sc) != NGX_OK) {
         return NGX_ERROR;
     }
