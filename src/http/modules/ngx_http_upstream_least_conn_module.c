@@ -182,7 +182,11 @@ ngx_http_upstream_get_least_conn_peer(ngx_peer_connection_t *pc, void *data)
 
         goto failed;
     }
-
+    /*
+     * 接下来这段就是当有多个server满足条件的时候的处理，这里是如果多个server满足条件，则进入round robin的处理逻辑。
+     * 下面的代码和round robin的get peer回调中算法是一模一样的。就是根据权重选择一个合适的server，这里Nginx还调整过
+     * round robin算法．
+     */
     if (many) {
         ngx_log_debug0(NGX_LOG_DEBUG_HTTP, pc->log, 0,
                        "get least conn peer, many");
