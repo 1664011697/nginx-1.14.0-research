@@ -8,17 +8,19 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
-
+/*从内存池中分配一块size大小的缓冲区，内部成员初始化好，temporary设为1*/
 ngx_buf_t *
 ngx_create_temp_buf(ngx_pool_t *pool, size_t size)
 {
     ngx_buf_t *b;
 
+    /* 最终调用的是内存池pool，开辟一段内存用作缓冲区，主要放置ngx_buf_t结构体 */
     b = ngx_calloc_buf(pool);
     if (b == NULL) {
         return NULL;
     }
 
+    /* 分配缓冲区内存;  pool为内存池，size为buf的大小*/
     b->start = ngx_palloc(pool, size);
     if (b->start == NULL) {
         return NULL;
@@ -43,19 +45,22 @@ ngx_create_temp_buf(ngx_pool_t *pool, size_t size)
     return b;
 }
 
-
+//从内存池中获取ngx_chian_t对象
 ngx_chain_t *
 ngx_alloc_chain_link(ngx_pool_t *pool)
 {
     ngx_chain_t  *cl;
-
+    /*
+     * 首先从内存池中去取ngx_chain_t，
+     * 被清空的ngx_chain_t结构都会放在pool->chain 缓冲链上
+     */
     cl = pool->chain;
 
     if (cl) {
         pool->chain = cl->next;
         return cl;
     }
-
+    /* 如果取不到，则从内存池pool上分配一个数据结构  */
     cl = ngx_palloc(pool, sizeof(ngx_chain_t));
     if (cl == NULL) {
         return NULL;
@@ -64,21 +69,22 @@ ngx_alloc_chain_link(ngx_pool_t *pool)
     return cl;
 }
 
-
+//一次创建多个缓冲区，返回一个连接好的链表
 ngx_chain_t *
 ngx_create_chain_of_bufs(ngx_pool_t *pool, ngx_bufs_t *bufs)
 {
     u_char       *p;
     ngx_int_t     i;
     ngx_buf_t    *b;
-    ngx_chain_t  *chain, *cl, **ll;
+    ngx_chain_t  *chain, *cl, **ll; //ll代表指针的指针
 
     p = ngx_palloc(pool, bufs->num * bufs->size);
     if (p == NULL) {
         return NULL;
     }
 
-    ll = &chain;
+    //用ll来交换指针变量地址
+    ll = &chain; //chain的地址赋值给ll，使用*ll作赋值操作时会改变chain的指针
 
     for (i = 0; i < bufs->num; i++) {
 
@@ -107,14 +113,16 @@ ngx_create_chain_of_bufs(ngx_pool_t *pool, ngx_bufs_t *bufs)
         p += bufs->size;
         b->end = p;
 
+        //分配一个nginx_chain_t
         cl = ngx_alloc_chain_link(pool);
         if (cl == NULL) {
             return NULL;
         }
 
+        /* 将buf，都挂载到ngx_chain_t链表上，最终返回ngx_chain_t链表 */
         cl->buf = b;
-        *ll = cl;
-        ll = &cl->next;
+        *ll = cl;   //ll相同地址的对象，chain等于cl
+        ll = &cl->next; //cl->next的地址赋值给ll，使用*ll作赋值操作时会改变cl->next的指针
     }
 
     *ll = NULL;
@@ -122,7 +130,9 @@ ngx_create_chain_of_bufs(ngx_pool_t *pool, ngx_bufs_t *bufs)
     return chain;
 }
 
-
+/**
+ * 将其它缓冲区链表放到已有缓冲区链表结构的尾部
+ */
 ngx_int_t
 ngx_chain_add_copy(ngx_pool_t *pool, ngx_chain_t **chain, ngx_chain_t *in)
 {
@@ -130,10 +140,12 @@ ngx_chain_add_copy(ngx_pool_t *pool, ngx_chain_t **chain, ngx_chain_t *in)
 
     ll = chain;
 
+    /* 找到缓冲区链表结尾部分，cl->next== NULL；cl = *chain既为指针链表地址*/
     for (cl = *chain; cl; cl = cl->next) {
-        ll = &cl->next;
+        ll = &cl->next; //设置ll的指向对象
     }
 
+    //依次将in链表中的节点插入到chain链表末尾
     while (in) {
         cl = ngx_alloc_chain_link(pool);
         if (cl == NULL) {
@@ -141,7 +153,7 @@ ngx_chain_add_copy(ngx_pool_t *pool, ngx_chain_t **chain, ngx_chain_t *in)
         }
 
         cl->buf = in->buf;
-        *ll = cl;
+        *ll = cl;   //*ll被赋值操作，会改变chain链表尾部指针
         ll = &cl->next;
         in = in->next;
     }
@@ -151,12 +163,13 @@ ngx_chain_add_copy(ngx_pool_t *pool, ngx_chain_t **chain, ngx_chain_t *in)
     return NGX_OK;
 }
 
-
+/*从空闲的buf链表上，获取一个未使用的buf链表*/
 ngx_chain_t *
 ngx_chain_get_free_buf(ngx_pool_t *p, ngx_chain_t **free)
 {
     ngx_chain_t  *cl;
 
+    /*空闲列表有数据，则直接返回一个链表*/
     if (*free) {
         cl = *free;
         *free = cl->next;
@@ -164,6 +177,7 @@ ngx_chain_get_free_buf(ngx_pool_t *p, ngx_chain_t **free)
         return cl;
     }
 
+    /*分配一个新的buf*/
     cl = ngx_alloc_chain_link(p);
     if (cl == NULL) {
         return NULL;
@@ -179,18 +193,28 @@ ngx_chain_get_free_buf(ngx_pool_t *p, ngx_chain_t **free)
     return cl;
 }
 
-
+/**
+ * 将busy链表中的空闲节点回收到free链表中
+ *
+ * @param p
+ * @param free 空闲链表
+ * @param busy busy链表
+ * @param out 已输出链表
+ * @param tag 需要释放buf的标记
+ */
 void
 ngx_chain_update_chains(ngx_pool_t *p, ngx_chain_t **free, ngx_chain_t **busy,
     ngx_chain_t **out, ngx_buf_tag_t tag)
 {
     ngx_chain_t  *cl;
 
+    /*将已输出out链表放到busy链表上*/
     if (*out) {
         if (*busy == NULL) {
-            *busy = *out;
+            *busy = *out;   //busy直接指向out链表
 
         } else {
+            //找到busy链表的最后一个节点
             for (cl = *busy; cl->next; cl = cl->next) { /* void */ }
 
             cl->next = *out;
@@ -201,20 +225,23 @@ ngx_chain_update_chains(ngx_pool_t *p, ngx_chain_t **free, ngx_chain_t **busy,
 
     while (*busy) {
         cl = *busy;
-
+        //合并后的该busy链表节点有内容时，则表示剩余节点都有内容，则退出
         if (ngx_buf_size(cl->buf) != 0) {
             break;
         }
 
+        //如果该busy链表节点不属于tag指向的模块，则跳过。
         if (cl->buf->tag != tag) {
             *busy = cl->next;
             ngx_free_chain(p, cl);
             continue;
         }
 
+        //重置buf缓冲区所有空间都可用
         cl->buf->pos = cl->buf->start;
         cl->buf->last = cl->buf->start;
 
+        //将该空闲空闲区加入到free链表表头
         *busy = cl->next;
         cl->next = *free;
         *free = cl;
