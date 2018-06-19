@@ -69,7 +69,7 @@ if [ "$NGX_PLATFORM" != win32 ]; then
     . auto/unix
 fi
 
-# 如果打开了线程池支持，那么就会检查是否操作系统支持县城
+# 如果打开了线程池支持，那么就会检查是否操作系统支持线程
 . auto/threads
 
 # 最核心的构造运行期modules的脚本。
