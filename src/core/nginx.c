@@ -214,6 +214,7 @@ main(int argc, char *const *argv)
     }
 
     //获取参数和配置参数，比如命令是nginx -v 那么ngx_show_version就设置为1
+    //会写入全局参数 ngx_show_version、ngx_show_help、ngx_show_configure、ngx_quiet_mode、ngx_prefix、ngx_conf_file、ngx_conf_params、ngx_signal、ngx_process信息
     if (ngx_get_options(argc, argv) != NGX_OK) {
         return 1;
     }
@@ -294,6 +295,7 @@ main(int argc, char *const *argv)
     }
 
     // 初始化模块，并且设置索引
+    // 编译期间已经完成了，所有模块创建初始化、业务周期等方法
     if (ngx_preinit_modules() != NGX_OK) {
         return 1;
     }

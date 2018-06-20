@@ -3,7 +3,6 @@
 #include <ngx_core.h>
 
 
-
 extern ngx_module_t  ngx_core_module;
 extern ngx_module_t  ngx_errlog_module;
 extern ngx_module_t  ngx_conf_module;
@@ -53,6 +52,13 @@ extern ngx_module_t  ngx_http_copy_filter_module;
 extern ngx_module_t  ngx_http_range_body_filter_module;
 extern ngx_module_t  ngx_http_not_modified_filter_module;
 
+//静态初始化
+//1 用宏NGX_MODULE_V1初始化前7个字段，默认ctx_index 都是 NGX_MODULE_UNSET_INDEX，比如：ngx_core_module = {...
+//2 用用全局对象ngx_mname_module_ctx的地址初始化ctx指针，比如：ngx_core_module_ctx
+//3 用全局数组ngx_mname_commands[]初始化commands指针, 比如：ngx_core_commands[]
+//4 nginx共有5种类型的模块，分别为"NGX_CORE_MODULE","NGX_CONF_MODULE","NGX_EVENT_MODULE","NGX_HTTP_MODULE","NGX_MAIL_MODULE"
+//5 初始化init_master等callback
+//6 用宏NGX_MODULE_V1_PADDING初始化最后8个字段, 即：spare_hook0到spare_hook7
 ngx_module_t *ngx_modules[] = {
     &ngx_core_module,
     &ngx_errlog_module,
@@ -105,6 +111,7 @@ ngx_module_t *ngx_modules[] = {
     NULL
 };
 
+/*全局模块指针数组*/
 char *ngx_module_names[] = {
     "ngx_core_module",
     "ngx_errlog_module",

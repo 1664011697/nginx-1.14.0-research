@@ -22,6 +22,7 @@ ngx_uint_t         ngx_max_module;
 static ngx_uint_t  ngx_modules_n;
 
 
+//动态初始化模块,给ngx_modules全局变量设置index和name
 ngx_int_t
 ngx_preinit_modules(void)
 {
