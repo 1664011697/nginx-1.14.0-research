@@ -261,6 +261,9 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
          *    NGX_CONF_BLOCK_DONE   the "}" was found
          *    NGX_CONF_FILE_DONE    the configuration file is done
          */
+        //remark: 解析 ; 返回 NGX_OK
+        //remark: 解析 http{ 返回 NGX_CONF_BLOCK_START
+        //remark: 解析 } 返回 NGX_CONF_BLOCK_DONE
 
         if (rc == NGX_ERROR) {
             goto done;
@@ -486,18 +489,21 @@ ngx_conf_handler(ngx_conf_t *cf, ngx_int_t last)
                 conf = ((void **) cf->ctx)[cf->cycle->modules[i]->index];
 
             // NGX_MAIN_CONF，里面存储一个void**指针
-            // 例如核心模块http/stream
+            // 例如核心模块http、stream
+            // 因为之前ctx在这个位置没有指向结构体的指针，所以把ctx位置的指针赋值给conf，让后面的set函数，为这个位置赋值配置项结构体的首地址。
             } else if (cmd->type & NGX_MAIN_CONF) {
                 conf = &(((void **) cf->ctx)[cf->cycle->modules[i]->index]);
 
-            // 大部分普通模块不会使用NGX_DIRECT_CONF、NGX_MAIN_CONF
+            // 大部分普通模块不会使用 NGX_DIRECT_CONF、NGX_MAIN_CONF
+            // 此时的 cf->ctx 实际为 ngx_http_conf_ctx_t 或 event中的虚拟指针
             } else if (cf->ctx) {
                 // 对于http/stream模块有意义，其他模块无用
                 // cf->ctx是有三个数组的结构体，用cmd->conf偏移量得到数组位置
+                // 对应ngx_command_s 结构体 conf
                 confp = *(void **) ((char *) cf->ctx + cmd->conf);
 
                 if (confp) {
-                    // 得到在main_conf/srv_conf/loc_conf数组里的模块对应配置结构体
+                    // 得到在main_conf/srv_conf/loc_conf 数组里的模块对应配置结构体
                     // 注意使用的是ctx_index
                     conf = confp[cf->cycle->modules[i]->ctx_index];
                 }
@@ -505,6 +511,10 @@ ngx_conf_handler(ngx_conf_t *cf, ngx_int_t last)
 
             // 调用指令数组里的函数解析，此时的conf指向正确的存储位置
             // cf->args里存储的是指令参数，正确性已经验证过了
+            // 实际此处调用的方法为: ngx_core_commands[] = {{第三项目的}}
+            // 最常用的有系统提供的14种方法，如：ngx_conf_set_flag_slot
+            // 最终会更改的是 cf->cycle->modules 所对应的 module_conf_t
+            //
             // @params cf:代表ngx_conf_s结构
             // @params @cmd:代表ngx_command_s结构
             // @@params conf:代表对应模块的 ngx_core_conf_t 产生来源是 module[x]->create_conf方法
@@ -547,7 +557,11 @@ invalid:
     return NGX_ERROR;
 }
 
-
+/*
+ * 从配置文件解析token
+ * https://blog.csdn.net/oyw5201314ck/article/details/78425194
+ * 一次数据查询
+ */
 static ngx_int_t
 ngx_conf_read_token(ngx_conf_t *cf)
 {
@@ -560,19 +574,19 @@ ngx_conf_read_token(ngx_conf_t *cf)
     ngx_str_t   *word;
     ngx_buf_t   *b, *dump;
 
-    found = 0;
-    need_space = 0;
-    last_space = 1;
-    sharp_comment = 0;
+    found = 0;                  // 用来表示是否找到一个完整的token
+    need_space = 0;             // 当接下来扫描到的字符需要是空格/水平制表符/回车符/换行符时置为1
+    last_space = 1;             // 当扫描到空格/水平制表符/回车符/换行符时置为1
+    sharp_comment = 0;          // 用来表示当前扫描的字符是否在一个#开头的行注释中
     variable = 0;
     quoted = 0;
     s_quoted = 0;
     d_quoted = 0;
 
-    cf->args->nelts = 0;
-    b = cf->conf_file->buffer;
+    cf->args->nelts = 0;        //每次执行清零,cf->args数组用来存放解析到的token
+    b = cf->conf_file->buffer;  // 缓冲区b, 里面存放配置内容
     dump = cf->conf_file->dump;
-    start = b->pos;
+    start = b->pos;             // b->pos用来标记当前将要扫描的字符位置 start用来标记一个token的起始字符
     start_line = cf->conf_file->line;
 
     file_size = ngx_file_size(&cf->conf_file->file.info);

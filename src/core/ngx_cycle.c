@@ -297,7 +297,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     log->log_level = NGX_LOG_DEBUG_ALL;
 #endif
 
-    //内部包含一次 ngx_conf_parse 用以验证conf是否初始化
+    //内部包含一次，file为空的 ngx_conf_parse
     if (ngx_conf_param(&conf) != NGX_CONF_OK) {
         environ = senv;
         ngx_destroy_cycle_pools(&conf);
@@ -321,6 +321,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     }
 
     //当配置文件解析完毕后，就初始化core module的config
+    //最外层只初始化 ngx_core 模块, 因为其他模块根本没有init_conf方法
     for (i = 0; cycle->modules[i]; i++) {
         if (cycle->modules[i]->type != NGX_CORE_MODULE) {
             continue;
@@ -329,9 +330,9 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
         //获取module对应的ctx即，ngx_core_module_ctx
         module = cycle->modules[i]->ctx;
 
-        //调用ngx_core_module_ctx的init_conf方法 比如：ngx_core_module_init_conf
-        //调用后实际修改的还是cycle->conf_ctx内容
-        //cycle->conf_ctx[cycle->modules[i]->index] 所指向的 ngx_core_conf_t结构体
+        //调用ngx_core_module_ctx的init_conf方法 ngx_core_module_init_conf
+
+        //以下代码调用后：实际修改的还是cycle->conf_ctx内容：cycle->conf_ctx[cycle->modules[i]->index] 所指向的 ngx_core_conf_t结构体
         if (module->init_conf) {
             if (module->init_conf(cycle,
                                   cycle->conf_ctx[cycle->modules[i]->index])
@@ -382,6 +383,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     }
 
     //验证锁文件权限
+    //lock_file 对应 配置文件中的 lock_file 参见：ngx_core_commands[]
     if (ngx_test_lockfile(cycle->lock_file.data, log) != NGX_OK) {
         goto failed;
     }

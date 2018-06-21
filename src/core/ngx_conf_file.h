@@ -46,9 +46,9 @@
 #define NGX_CONF_1MORE       0x00000800
 #define NGX_CONF_2MORE       0x00001000
 
-#define NGX_DIRECT_CONF      0x00010000     //可以出现在配置文件的最外层，例如master_process、daemon
+#define NGX_DIRECT_CONF      0x00010000     //可以出现在配置文件的最外层不需要被包含，例如master_process、daemon
 
-#define NGX_MAIN_CONF        0x01000000     //http、events等
+#define NGX_MAIN_CONF        0x01000000     //最顶层的conf, 比如：http、events等
 #define NGX_ANY_CONF         0x1F000000     //该配置指令可以出现在任意配置级别上
 
 
@@ -86,7 +86,6 @@ struct ngx_command_s {
         cmd: 这个配置指令对应的ngx_command_t结构。
         conf: 就是定义的存储这个配置值的结构体
         最常用的有系统提供的14种方法，如：ngx_conf_set_flag_slot
-        https://blog.csdn.net/zhangxiao93/article/details/52979993
      */
     char               *(*set)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
     //在配置文件中的偏移量，它的取值范围是：
@@ -103,7 +102,7 @@ struct ngx_command_s {
     //可以使用offsetof(test_stru, b)来获取
     //对于有些配置项，它的值不需要保存，就可以设置为0。
     ngx_uint_t            offset;
-    //命令处理完后的回调指针
+    //命令处理完后的回调指针，对于set的14种预设的解析配置方法
     //ngx_conf_post_t
     void                 *post;
 };

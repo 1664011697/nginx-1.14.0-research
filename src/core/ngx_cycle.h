@@ -38,6 +38,7 @@ struct ngx_shm_zone_s {
 // 全局变量
 // modules,conf,listening,connections,events
 struct ngx_cycle_s {
+    //为什么conf_ctx要有4重指针？http://www.pagefault.info/?p=368
     void                  ****conf_ctx; // 各个模块的配置
     ngx_pool_t               *pool;
 
