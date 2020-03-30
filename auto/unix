@@ -1,7 +1,7 @@
 
 # Copyright (C) Igor Sysoev
 # Copyright (C) Nginx, Inc.
-
+# unix一些通用的东西
 
 NGX_USER=${NGX_USER:-nobody}
 

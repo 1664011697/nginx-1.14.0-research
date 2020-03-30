@@ -9,12 +9,25 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
-
+//https://github.com/chronolaw/annotated_nginx/blob/master/nginx/src/http/ngx_http.c
+// 解析http{}配置块，里面有server{}/location{}等
+// 只有出现这个指令才会在conf_ctx里创建http配置，避免内存浪费
+// 统计http模块的数量,设置http模块的ctx_index，即http模块自己的序号
+// 调用每个http模块的create_xxx_conf函数，创建配置结构体
+// 初始化http处理引擎的阶段数组，调用ngx_array_init
+// 整理所有的http handler模块，填入引擎数组
+// 调用ngx_create_listening添加到cycle的监听端口数组，只是添加，没有其他动作
+// 设置有连接发生时的回调函数ngx_http_init_connection
 static char *ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+
+// 初始化http处理引擎的阶段数组，调用ngx_array_init
+// 虽然总共有11个阶段，但只初始化了7个数组，只能在这些里加handler
 static ngx_int_t ngx_http_init_phases(ngx_conf_t *cf,
     ngx_http_core_main_conf_t *cmcf);
 static ngx_int_t ngx_http_init_headers_in_hash(ngx_conf_t *cf,
     ngx_http_core_main_conf_t *cmcf);
+
+// 整理所有的http handler模块，填入引擎数组
 static ngx_int_t ngx_http_init_phase_handlers(ngx_conf_t *cf,
     ngx_http_core_main_conf_t *cmcf);
 
@@ -47,6 +60,9 @@ static ngx_http_location_tree_node_t *
     ngx_http_create_locations_tree(ngx_conf_t *cf, ngx_queue_t *locations,
     size_t prefix);
 
+// 类似stream模块，对已经整理好的监听端口数组排序
+// 调用ngx_create_listening添加到cycle的监听端口数组，只是添加，没有其他动作
+// 设置有连接发生时的回调函数ngx_http_init_connection
 static ngx_int_t ngx_http_optimize_servers(ngx_conf_t *cf,
     ngx_http_core_main_conf_t *cmcf, ngx_array_t *ports);
 static ngx_int_t ngx_http_server_names(ngx_conf_t *cf,
@@ -57,6 +73,9 @@ static int ngx_libc_cdecl ngx_http_cmp_dns_wildcards(const void *one,
 
 static ngx_int_t ngx_http_init_listening(ngx_conf_t *cf,
     ngx_http_conf_port_t *port);
+
+// 调用ngx_create_listening添加到cycle的监听端口数组，只是添加，没有其他动作
+// 设置有连接发生时的回调函数ngx_http_init_connection
 static ngx_listening_t *ngx_http_add_listening(ngx_conf_t *cf,
     ngx_http_conf_addr_t *addr);
 static ngx_int_t ngx_http_add_addrs(ngx_conf_t *cf, ngx_http_port_t *hport,
@@ -116,6 +135,14 @@ ngx_module_t  ngx_http_module = {
 };
 
 
+// 解析http{}配置块，里面有server{}/location{}等
+// 只有出现这个指令才会在conf_ctx里创建http配置，避免内存浪费
+// 统计http模块的数量,设置http模块的ctx_index，即http模块自己的序号
+// 调用每个http模块的create_xxx_conf函数，创建配置结构体
+// 初始化http处理引擎的阶段数组，调用ngx_array_init
+// 整理所有的http handler模块，填入引擎数组
+// 调用ngx_create_listening添加到cycle的监听端口数组，只是添加，没有其他动作
+// 设置有连接发生时的回调函数ngx_http_init_connection
 static char *
 ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
@@ -128,6 +155,9 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     ngx_http_core_srv_conf_t   **cscfp;
     ngx_http_core_main_conf_t   *cmcf;
 
+    // http处理的配置结构体，里面有main_conf/srv_conf/loc_conf三个数组
+    // 对应ngx_conf_file.c 中 ngx_conf_handler 方法的 NGX_MAIN_CONF 级别配置
+    // 不允许重复配置 ： 验证数据是否赋值？
     if (*(ngx_http_conf_ctx_t **) conf) {
         return "is duplicate";
     }
@@ -143,12 +173,13 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
 
     /* count the number of the http modules and set up their indices */
-
+    // 统计http模块的数量
+    // 设置http模块的ctx_index，即http模块自己的序号
     ngx_http_max_module = ngx_count_modules(cf->cycle, NGX_HTTP_MODULE);
 
 
     /* the http main_conf context, it is the same in the all http contexts */
-
+    // main配置数组，所有http模块只有一个conf
     ctx->main_conf = ngx_pcalloc(cf->pool,
                                  sizeof(void *) * ngx_http_max_module);
     if (ctx->main_conf == NULL) {
@@ -160,7 +191,7 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      * the http null srv_conf context, it is used to merge
      * the server{}s' srv_conf's
      */
-
+    // srv配置数组，在http main层次存储server基本的配置，用于合并
     ctx->srv_conf = ngx_pcalloc(cf->pool, sizeof(void *) * ngx_http_max_module);
     if (ctx->srv_conf == NULL) {
         return NGX_CONF_ERROR;
@@ -171,7 +202,7 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      * the http null loc_conf context, it is used to merge
      * the server{}s' loc_conf's
      */
-
+    // location配置数组，在http main层次存储location基本的配置，用于合并
     ctx->loc_conf = ngx_pcalloc(cf->pool, sizeof(void *) * ngx_http_max_module);
     if (ctx->loc_conf == NULL) {
         return NGX_CONF_ERROR;
@@ -182,7 +213,8 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      * create the main_conf's, the null srv_conf's, and the null loc_conf's
      * of the all http modules
      */
-
+    // 调用每个http模块的create_xxx_conf函数 (如：ngx_http_core_create_main_conf)，创建配置结构体
+    //
     for (m = 0; cf->cycle->modules[m]; m++) {
         if (cf->cycle->modules[m]->type != NGX_HTTP_MODULE) {
             continue;
@@ -190,21 +222,21 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         module = cf->cycle->modules[m]->ctx;
         mi = cf->cycle->modules[m]->ctx_index;
-
+        // 创建每个模块的main_conf
         if (module->create_main_conf) {
             ctx->main_conf[mi] = module->create_main_conf(cf);
             if (ctx->main_conf[mi] == NULL) {
                 return NGX_CONF_ERROR;
             }
         }
-
+        // 创建每个模块的srv_conf
         if (module->create_srv_conf) {
             ctx->srv_conf[mi] = module->create_srv_conf(cf);
             if (ctx->srv_conf[mi] == NULL) {
                 return NGX_CONF_ERROR;
             }
         }
-
+        // 创建每个模块的loc_conf
         if (module->create_loc_conf) {
             ctx->loc_conf[mi] = module->create_loc_conf(cf);
             if (ctx->loc_conf[mi] == NULL) {
@@ -213,9 +245,15 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         }
     }
 
+    // 初始的解析环境已经准备好，下面开始解析http{}配置
+    // 暂存当前的解析上下文
+    // cf是函数入口传递来的上下文
     pcf = *cf;
+    // 设置事件模块的新解析上下文
+    // 即ngx_http_conf_ctx_t结构体
     cf->ctx = ctx;
 
+    // 解析之前，调用preconfiguration，可以添加变量定义
     for (m = 0; cf->cycle->modules[m]; m++) {
         if (cf->cycle->modules[m]->type != NGX_HTTP_MODULE) {
             continue;
@@ -232,8 +270,12 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     /* parse inside the http{} block */
 
+    // 设置解析的类型等信息
+    // NGX_HTTP_MODULE用来检查是否是http模块，防止用错了指令
     cf->module_type = NGX_HTTP_MODULE;
     cf->cmd_type = NGX_HTTP_MAIN_CONF;
+
+    // 核心方法：递归解析http模块
     rv = ngx_conf_parse(cf, NULL);
 
     if (rv != NGX_CONF_OK) {
@@ -245,7 +287,9 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      * and its location{}s' loc_conf's
      */
 
+    // 解析完毕，检查http{}里定义的server{}块
     cmcf = ctx->main_conf[ngx_http_core_module.ctx_index];
+    // 所有server{}定义的配置都保存在core module main conf的serevrs数组里
     cscfp = cmcf->servers.elts;
 
     for (m = 0; cf->cycle->modules[m]; m++) {
@@ -257,7 +301,7 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         mi = cf->cycle->modules[m]->ctx_index;
 
         /* init http{} main_conf's */
-
+        // 初始化main配置
         if (module->init_main_conf) {
             rv = module->init_main_conf(cf, ctx->main_conf[mi]);
             if (rv != NGX_CONF_OK) {
@@ -265,6 +309,7 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             }
         }
 
+        // 合并srv配置
         rv = ngx_http_merge_servers(cf, cmcf, module, mi);
         if (rv != NGX_CONF_OK) {
             goto failed;
@@ -273,7 +318,7 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
 
     /* create location trees */
-
+    // 遍历server数组，创建location树
     for (s = 0; s < cmcf->servers.nelts; s++) {
 
         clcf = cscfp[s]->ctx->loc_conf[ngx_http_core_module.ctx_index];
@@ -287,7 +332,9 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         }
     }
 
-
+    // 初始化http处理引擎的阶段数组，调用ngx_array_init
+    // 虽然总共有11个阶段，但只初始化了7个数组，只能在这些里加handler
+    // cmcf只有唯一的一个
     if (ngx_http_init_phases(cf, cmcf) != NGX_OK) {
         return NGX_CONF_ERROR;
     }
@@ -296,7 +343,8 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-
+    // 执行每个http模块的postconfiguration函数指针
+    // 通常是向phase数组里添加handler
     for (m = 0; cf->cycle->modules[m]; m++) {
         if (cf->cycle->modules[m]->type != NGX_HTTP_MODULE) {
             continue;
@@ -311,6 +359,8 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         }
     }
 
+    // 初始化变量数组
+    // in ngx_http_variables.c
     if (ngx_http_variables_init_vars(cf) != NGX_OK) {
         return NGX_CONF_ERROR;
     }
@@ -320,16 +370,20 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
      * and in postconfiguration process
      */
 
+    // 恢复之前保存的解析上下文
     *cf = pcf;
 
-
+    // 整理所有的http handler 模块，填入引擎数组
+    // 之前已经在模块的postconfiguration里添加过了
     if (ngx_http_init_phase_handlers(cf, cmcf) != NGX_OK) {
         return NGX_CONF_ERROR;
     }
 
 
     /* optimize the lists of ports, addresses and server names */
-
+    // 类似stream模块，对已经整理好的监听端口数组排序
+    // 调用ngx_create_listening添加到cycle的监听端口数组，只是添加，没有其他动作
+    // 设置有连接发生时的回调函数ngx_http_init_connection
     if (ngx_http_optimize_servers(cf, cmcf, cmcf->ports) != NGX_OK) {
         return NGX_CONF_ERROR;
     }
@@ -1619,7 +1673,8 @@ ngx_http_cmp_dns_wildcards(const void *one, const void *two)
     return ngx_dns_strcmp(first->key.data, second->key.data);
 }
 
-
+// 调用ngx_create_listening添加到cycle的监听端口数组，只是添加，没有其他动作
+// 设置有连接发生时的回调函数ngx_http_init_connection
 static ngx_int_t
 ngx_http_init_listening(ngx_conf_t *cf, ngx_http_conf_port_t *port)
 {
@@ -1655,6 +1710,8 @@ ngx_http_init_listening(ngx_conf_t *cf, ngx_http_conf_port_t *port)
             continue;
         }
 
+        // 调用ngx_create_listening添加到cycle的监听端口数组，只是添加，没有其他动作
+        // 设置有连接发生时的回调函数ngx_http_init_connection
         ls = ngx_http_add_listening(cf, &addr[i]);
         if (ls == NULL) {
             return NGX_ERROR;
@@ -1697,6 +1754,8 @@ ngx_http_init_listening(ngx_conf_t *cf, ngx_http_conf_port_t *port)
 }
 
 
+// 调用ngx_create_listening添加到cycle的监听端口数组，只是添加，没有其他动作
+// 设置有连接发生时的回调函数ngx_http_init_connection
 static ngx_listening_t *
 ngx_http_add_listening(ngx_conf_t *cf, ngx_http_conf_addr_t *addr)
 {
@@ -1704,6 +1763,8 @@ ngx_http_add_listening(ngx_conf_t *cf, ngx_http_conf_addr_t *addr)
     ngx_http_core_loc_conf_t  *clcf;
     ngx_http_core_srv_conf_t  *cscf;
 
+    // in core/ngx_connection.c
+    // 添加到cycle的监听端口数组
     ls = ngx_create_listening(cf, &addr->opt.sockaddr.sockaddr,
                               addr->opt.socklen);
     if (ls == NULL) {
@@ -1712,6 +1773,7 @@ ngx_http_add_listening(ngx_conf_t *cf, ngx_http_conf_addr_t *addr)
 
     ls->addr_ntop = 1;
 
+    // 设置有连接发生时的回调函数ngx_http_init_connection
     ls->handler = ngx_http_init_connection;
 
     cscf = addr->default_server;

@@ -189,7 +189,11 @@ ngx_module_t  ngx_event_core_module = {
     NGX_MODULE_V1_PADDING
 };
 
-
+// 1.ngx_accept_disabled是否可以接收新的连接
+// 2.ngx_trylock_accept_mutex抢锁，抢到锁的人才能accept
+// 3.ngx_process_events处理网络IO相关的事件(accept/connect/read/write)
+// 4.ngx_event_process_posted处理accept_posted_events，为了快速释放锁，accept事件会优先处理，其他事件会稍候处理
+// 5.ngx_event_expire_timers(处理timeout事件。使用红黑树存储定时器事件，每次获取最左边的节点，即离当前最近的事件)
 void
 ngx_process_events_and_timers(ngx_cycle_t *cycle)
 {

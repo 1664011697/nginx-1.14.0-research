@@ -40,16 +40,16 @@
                               |NGX_CONF_TAKE4)
 
 #define NGX_CONF_ARGS_NUMBER 0x000000ff
-#define NGX_CONF_BLOCK       0x00000100
+#define NGX_CONF_BLOCK       0x00000100     //配置指令可以接受一个配置块，如server
 #define NGX_CONF_FLAG        0x00000200
 #define NGX_CONF_ANY         0x00000400
 #define NGX_CONF_1MORE       0x00000800
 #define NGX_CONF_2MORE       0x00001000
 
-#define NGX_DIRECT_CONF      0x00010000
+#define NGX_DIRECT_CONF      0x00010000     //可以出现在配置文件的最外层不需要被包含，例如master_process、daemon
 
-#define NGX_MAIN_CONF        0x01000000
-#define NGX_ANY_CONF         0x1F000000
+#define NGX_MAIN_CONF        0x01000000     //最顶层的conf, 比如：http、events等
+#define NGX_ANY_CONF         0x1F000000     //该配置指令可以出现在任意配置级别上
 
 
 
@@ -73,13 +73,37 @@
 
 #define NGX_MAX_CONF_ERRSTR  1024
 
-
+//commands数组用于定义模块的配置文件参数。
 struct ngx_command_s {
-    ngx_str_t             name;
-    ngx_uint_t            type;
+    ngx_str_t             name; //命令名
+    ngx_uint_t            type; //命令类型
+
+    /*  当nginx在解析配置的时候，如果遇到这个配置指令，将会把读取到的值传递给这个函数进行解析保存。
+        因为具体每个配置指令的值如何处理，只有定义这个配置指令的人是最清楚的，set可能复杂也可能很简单。
+        比如errlog模块的“error_log”指令就是调用ngx_error_log写一条日志，并不需要存储什么配置数据。
+     *  cf: 保存从配置文件读取到的原始字符串以及相关信息。这个参数的args字段是一个ngx_str_t类型的数组，
+            该数组首元素是这个配置指令本身，第二个元素开始才是参数。
+        cmd: 这个配置指令对应的ngx_command_t结构。
+        conf: 就是定义的存储这个配置值的结构体
+        最常用的有系统提供的14种方法，如：ngx_conf_set_flag_slot
+     */
     char               *(*set)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+    //在配置文件中的偏移量，它的取值范围是：
+    /*
+    NGX_HTTP_MAIN_CONF_OFFSET
+    NGX_HTTP_SRV_CONF_OFFSET
+    NGX_HTTP_LOC_CONF_OFFSET
+    */
+    //因为有可能模块同时会有main，srv，loc三种配置结构体，但是这个配置项解析完后要放在哪个结构体内呢？
+    //当设置为0时，就是NGX_HTTP_MAIN_CONF_OFFSET
     ngx_uint_t            conf;
+
+    //表示当前配置项在整个存储配置项的结构体中的偏移位置，
+    //可以使用offsetof(test_stru, b)来获取
+    //对于有些配置项，它的值不需要保存，就可以设置为0。
     ngx_uint_t            offset;
+    //命令处理完后的回调指针，对于set的14种预设的解析配置方法
+    //ngx_conf_post_t
     void                 *post;
 };
 

@@ -83,6 +83,9 @@ ngx_signal_t  signals[] = {
 };
 
 
+// fork & proc worker
+// worker proc:ngx_worker_process_cycle
+// cache manager worker:ngx_cache_manager_process_cycle
 ngx_pid_t
 ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
     char *name, ngx_int_t respawn)

@@ -79,7 +79,7 @@ ngx_module_t  ngx_http_upstream_ip_hash_module = {
 
 static u_char ngx_http_upstream_ip_hash_pseudo_addr[3];
 
-
+/*全局初始化*/
 static ngx_int_t
 ngx_http_upstream_init_ip_hash(ngx_conf_t *cf, ngx_http_upstream_srv_conf_t *us)
 {
@@ -102,7 +102,7 @@ ngx_http_upstream_init_ip_hash_peer(ngx_http_request_t *r,
     struct sockaddr_in6                    *sin6;
 #endif
     ngx_http_upstream_ip_hash_peer_data_t  *iphp;
-
+    /* 分配 ngx_http_upstream_ip_hash_peer_data_t 结构体内存空间 */
     iphp = ngx_palloc(r->pool, sizeof(ngx_http_upstream_ip_hash_peer_data_t));
     if (iphp == NULL) {
         return NGX_ERROR;
@@ -117,13 +117,17 @@ ngx_http_upstream_init_ip_hash_peer(ngx_http_request_t *r,
     r->upstream->peer.get = ngx_http_upstream_get_ip_hash_peer;
 
     switch (r->connection->sockaddr->sa_family) {
-
+    /* IPv4 地址 转储IPv4只用到了前3个字节，因为在后面的hash计算过程中只用到了3个字节*/
+    /* for循环 i取 012三个值，而ip的点分十进制表示方法将ip分成四段（如：192.168.1.1），
+     * 但是这里循环时只是将ip的前三个端作为参数加入hash函数。这样做的目的是保证ip地址前三位相同的用户经过hash计算将分配到相同的后端server。
+     * 作者的这个考虑是极为可取的，因此ip地址前三位相同通常意味着来着同一个局域网或者相邻区域，使用相同的后端服务让nginx在一定程度上更具有一致性。
+     */
     case AF_INET:
         sin = (struct sockaddr_in *) r->connection->sockaddr;
         iphp->addr = (u_char *) &sin->sin_addr.s_addr;
         iphp->addrlen = 3;
         break;
-
+    /* IPv6 地址 */
 #if (NGX_HAVE_INET6)
     case AF_INET6:
         sin6 = (struct sockaddr_in6 *) r->connection->sockaddr;
@@ -131,12 +135,12 @@ ngx_http_upstream_init_ip_hash_peer(ngx_http_request_t *r,
         iphp->addrlen = 16;
         break;
 #endif
-
+    /* 非法地址 */
     default:
         iphp->addr = ngx_http_upstream_ip_hash_pseudo_addr;
         iphp->addrlen = 3;
     }
-
+    //初始化hash种子
     iphp->hash = 89;
     iphp->tries = 0;
     iphp->get_rr_peer = ngx_http_upstream_get_round_robin_peer;
@@ -162,7 +166,7 @@ ngx_http_upstream_get_ip_hash_peer(ngx_peer_connection_t *pc, void *data)
     /* TODO: cached */
 
     ngx_http_upstream_rr_peers_wlock(iphp->rrp.peers);
-
+    /* 若重试连接的次数 tries 大于 20，或 只有一台后端服务器，则直接调用加权轮询策略选择当前后端服务器处理请求 */
     if (iphp->tries > 20 || iphp->rrp.peers->single) {
         ngx_http_upstream_rr_peers_unlock(iphp->rrp.peers);
         return iphp->get_rr_peer(pc, &iphp->rrp);
@@ -176,7 +180,7 @@ ngx_http_upstream_get_ip_hash_peer(ngx_peer_connection_t *pc, void *data)
     hash = iphp->hash;
 
     for ( ;; ) {
-
+        /* 计算 IP 地址的 hash 值 */
         for (i = 0; i < (ngx_uint_t) iphp->addrlen; i++) {
             hash = (hash * 113 + iphp->addr[i]) % 6271;
         }
@@ -184,7 +188,10 @@ ngx_http_upstream_get_ip_hash_peer(ngx_peer_connection_t *pc, void *data)
         w = hash % iphp->rrp.peers->total_weight;
         peer = iphp->rrp.peers->peer;
         p = 0;
-
+        /* total_weight为所有后端权重之和。遍历后端链表时，依次减去每个后端的权重，直到w小于某个后端的权重。
+         * 选定的后端在链表中的序号为p。因为total_weight和每个后端的weight都是固定的，所以如果hash3值相同，
+         * 则找到的后端相同。
+         */
         while (w >= peer->weight) {
             w -= peer->weight;
             peer = peer->next;
